@@ -113,17 +113,20 @@ enum Pitch {
 };
 
 typedef struct note {
-  Pitch pitch;
+  enum Pitch pitch;
   unsigned long millis;
 } note;
 
 #define Note(pitch, millis) ((note){(pitch), (millis)})
 
 typedef struct motor {
-  unsigned char step;
-  unsigned char dir;
+  unsigned char stepPin;
+  unsigned char dirPin;
+  char curr_dir;
+  unsigned int note_index;
+  unsigned long note_played_duration;
 } motor;
 
-#define Motor(stepPin, dirPin) ((motor){(stepPin), (dirPin)})
+#define Motor(stepPin, dirPin) ((motor){(stepPin), (dirPin), 0, 0, 0})
 
 void play_note(motor motor, note note);

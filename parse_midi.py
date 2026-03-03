@@ -40,16 +40,33 @@ for i in range(len(all_messages)):
         all_notes.append(piano[curr.note])
 
 all_notes = [n for n in all_notes if n.length > 0]
-all_notes = sorted(all_notes, key=lambda x: x.start_time)
+all_notes = sorted(all_notes, key=lambda x: x.time)
 
 i = 0
 while i < len(all_notes) - 1:
-    curr_end = all_notes[i].start_time + all_notes[i].length
-    next_start = all_notes[i + 1].start_time
+    curr_end = all_notes[i].time + all_notes[i].length
+    next_start = all_notes[i + 1].time
     if curr_end < next_start:
         all_notes.insert(i + 1, Note("NOTE_NONE", curr_end, next_start - curr_end))
         i += 1
     i += 1
 
-print("\n".join([i.to_note_command("mot1") for i in all_notes]))
+
+with open("song.c", "w") as file:
+    body = "\n".join([i.to_note_command() for i in all_notes])
+    file.write(
+        f"""#include "song.h"
+
+const note motor1_notes[] = {{\n{body}\n}};"""
+    )
+
+with open("song.h", "w") as file:
+    file.write(
+        f"""#ifndef SONG_H
+#define SONG_H
+#include "lib/tones.h"
+
+extern const note motor1_notes[{len(all_notes)}];
+#endif"""
+    )
 

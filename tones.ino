@@ -7,9 +7,9 @@ void play_note(motor motor, note note) {
   }
   unsigned long total_time = 0;
   while (total_time < note.millis) {
-    digitalWrite(motor.step, HIGH);
+    digitalWrite(motor.stepPin, HIGH);
     delayMicroseconds(note.pitch);
-    digitalWrite(motor.step, LOW);
+    digitalWrite(motor.stepPin, LOW);
     delayMicroseconds(note.pitch);
     total_time += note.pitch * 2 / 1000;
   }
