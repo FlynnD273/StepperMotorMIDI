@@ -6,12 +6,8 @@
 #define PIN_ENABLE 8
 motor mot1 = Motor(3, 6);
 motor mot2 = Motor(2, 5);
-const int stepXPin = 2;  // X.STEP
-const int dirXPin = 5;   // X.DIR
-const int stepYPin = 3;  // Y.STEP
-const int dirYPin = 6;   // Y.DIR
-const int stepZPin = 4;  // Z.STEP
-const int dirZPin = 7;   // Z.DIR
+motor mot3 = Motor(4, 7);
+motor mot4 = Motor(12, 13);
 
 void setup() {
   // Serial.begin(9600);
@@ -21,54 +17,38 @@ void setup() {
   pinMode(mot1.dirPin, OUTPUT);
   pinMode(mot2.stepPin, OUTPUT);
   pinMode(mot2.dirPin, OUTPUT);
+  pinMode(mot3.stepPin, OUTPUT);
+  pinMode(mot3.dirPin, OUTPUT);
 }
 
 
 
-unsigned int perform_motor_tick(motor *mot, note notes[], unsigned int notes_len) {
-  motor stack_mot;
-  memcpy(&stack_mot, mot, sizeof(motor));
-  note curr_note = notes[stack_mot.note_index];
-  if (stack_mot.note_index >= notes_len) {
-    return 1000000;
-  }
+void perform_motor_tick(motor *mot, note notes[], unsigned int notes_len, unsigned long now) {
+  if (mot->note_index >= notes_len) return;
 
-  if (curr_note.millis * 1000 <= stack_mot.note_played_duration) {
+  note curr_note = notes[mot->note_index];
+
+  if (now >= (curr_note.start_millis + curr_note.millis) * 1000) {
     (*mot).note_index++;
-    stack_mot.note_index = mot->note_index;
-    (*mot).note_played_duration = 0;
-    stack_mot.note_played_duration = mot->note_played_duration;
+    if (mot->note_index >= notes_len) return;
+    curr_note = notes[mot->note_index];
+    (*mot).next_step = curr_note.start_millis * 1000;
     if (curr_note.pitch != NOTE_NONE) {
       (*mot).curr_dir++;
       (*mot).curr_dir %= 4;
-      stack_mot.curr_dir = mot->curr_dir;
-      digitalWrite(stack_mot.dirPin, (stack_mot.curr_dir < 2) ? LOW : HIGH);
+      digitalWrite(mot->dirPin, (mot->curr_dir < 2) ? LOW : HIGH);
     }
   }
-  curr_note = notes[stack_mot.note_index];
-  unsigned int delay_dur = 1000000;
-  if (stack_mot.note_index < notes_len) {
-    if (curr_note.pitch != NOTE_NONE) {
-      if (stack_mot.note_played_duration % curr_note.pitch == 0) {
-        digitalWrite(stack_mot.stepPin, (stack_mot.note_played_duration % (curr_note.pitch * 2))
-                                     ? LOW
-                                     : HIGH);
-      }
-    }
-
-    if (curr_note.pitch != NOTE_NONE) {
-      delay_dur =
-        curr_note.pitch - (stack_mot.note_played_duration % curr_note.pitch);
-    } else {
-      delay_dur = curr_note.millis * 1000;
-    }
+  if (curr_note.pitch != NOTE_NONE && mot->next_step < now) {
+    digitalWrite(mot->stepPin, HIGH);
+    digitalWrite(mot->stepPin, LOW);
+    (*mot).next_step = now + curr_note.pitch * 2;
   }
-  return delay_dur;
 }
 
 void loop() {
-  unsigned int min_delay = MIN(perform_motor_tick(&mot1, motor1_notes,motor1_notes_len), perform_motor_tick(&mot2, motor2_notes,motor2_notes_len));
-  delayMicroseconds(min_delay);
-  mot1.note_played_duration += min_delay;
-  mot2.note_played_duration += min_delay;
+  unsigned long now = micros();
+  perform_motor_tick(&mot1, motor1_notes, motor1_notes_len, now);
+  perform_motor_tick(&mot2, motor2_notes, motor2_notes_len, now);
+  perform_motor_tick(&mot3, motor3_notes, motor3_notes_len, now);
 }

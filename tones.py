@@ -8,7 +8,7 @@ class Note:
         return f"{self.pitch} [{self.time}, {self.length}]"
 
     def to_note_command(self) -> str:
-        return f"Note({self.pitch}, {self.length}),"
+        return f"Note({self.pitch}, {self.time}, {self.length}),"
 
     def clone(self):
         return Note(self.pitch, self.time, self.length)

@@ -1,9 +1,12 @@
+from typing import List
 from mido import Message, MidiFile, tick2second
 
 from tones import Note, get_enum_string
 
 
-mid = MidiFile("./Mario.mid")
+# mid = MidiFile("./midi_export.mid")
+mid = MidiFile("./Mario Bros. - Super Mario Bros. Theme.mid")
+# mid = MidiFile("Mario.mid")
 
 ticks_per_beat = mid.ticks_per_beat
 tempo = 500000
@@ -35,38 +38,52 @@ for i in range(len(all_messages)):
         )
     elif curr.type == "note_off":
         piano[curr.note].length = round(
-            tick2second(curr.time, ticks_per_beat, tempo) * 1_000
+            tick2second(time, ticks_per_beat, tempo) * 1_000 - piano[curr.note].time
         )
-        all_notes.append(piano[curr.note])
+        all_notes.append(piano[curr.note].clone())
 
 all_notes = [n for n in all_notes if n.length > 0]
 all_notes = sorted(all_notes, key=lambda x: x.time)
+all_notes = all_notes[:165]
 
-i = 0
-while i < len(all_notes) - 1:
-    curr_end = all_notes[i].time + all_notes[i].length
-    next_start = all_notes[i + 1].time
-    if curr_end < next_start:
-        all_notes.insert(i + 1, Note("NOTE_NONE", curr_end, next_start - curr_end))
-        i += 1
-    i += 1
+motor_notes: List[List[Note]] = [[] for _ in range(3)]
 
+last_added = -1
+
+for note in all_notes:
+    last_added += 1
+    last_added = last_added % len(motor_notes)
+
+    should_skip = False
+    old_val = last_added
+    while (
+        motor_notes[last_added]
+        and motor_notes[last_added][-1].time + motor_notes[last_added][-1].length
+        >= note.time
+    ):
+        last_added += 1
+        last_added = last_added % len(motor_notes)
+        if last_added == old_val:
+            should_skip = True
+            break
+
+    if should_skip:
+        print("Skipped note", note)
+    else:
+        motor_notes[last_added].append(note)
 
 with open("song.c", "w") as file:
-    body = "\n".join([i.to_note_command() for i in all_notes])
-    file.write(
-        f"""#include "song.h"
-
-const note motor1_notes[] = {{\n{body}\n}};"""
-    )
+    lines = ['#include "song.h"', ""]
+    for i, notes in enumerate(motor_notes):
+        body = "\n".join(["  " + i.to_note_command() for i in notes])
+        lines.append(f"const note motor{i+1}_notes[] = {{\n{body}\n}};")
+    file.write("\n".join(lines))
 
 with open("song.h", "w") as file:
-    file.write(
-        f"""#ifndef SONG_H
-#define SONG_H
-#include "lib/tones.h"
-
-extern const note motor1_notes[{len(all_notes)}];
-#endif"""
-    )
+    lines = ["#ifndef SONG_H", "#define SONG_H", '#include "lib/tones.h"', ""]
+    for i, notes in enumerate(motor_notes):
+        lines.append(f"extern const note motor{i+1}_notes[{len(notes)}];")
+        lines.append(f"const unsigned int motor{i+1}_notes_len = {len(notes)};")
+    lines.append("#endif")
+    file.write("\n".join(lines))
 
