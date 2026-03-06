@@ -1,13 +1,14 @@
 from typing import List
 from mido import Message, MidiFile, tick2second
+from tones import Note, Pitches, get_enum_string
+import struct
+import serial
+from time import sleep, time_ns
+import signal
+import sys
 
-from tones import Note, get_enum_string
-
-
-# mid = MidiFile("./midi_export.mid")
-mid = MidiFile("/home/flynn/Downloads/Artist_ Stromae & Pomme - Ma Meilleure Ennemie.mid")
-# mid = MidiFile("Mario.mid")
-SEMITONE_SHIFT = 0
+mid = MidiFile(sys.argv[1])
+SEMITONE_SHIFT = 0 if len(sys.argv) < 3 else int(sys.argv[2])
 
 ticks_per_beat = mid.ticks_per_beat
 tempo = 500000
@@ -45,7 +46,6 @@ for i in range(len(all_messages)):
 
 all_notes = [n for n in all_notes if n.length > 0]
 all_notes = sorted(all_notes, key=lambda x: x.time)
-all_notes = all_notes[:300]
 
 motor_notes: List[List[Note]] = [[] for _ in range(3)]
 
@@ -70,26 +70,58 @@ for note in all_notes:
     else:
         print("Skipping note", note)
 
-for motor_idx, old_notes in enumerate(motor_notes):
-    notes = [old_notes[0].clone()]
-    for i in range(1, len(old_notes)):
-        note = old_notes[i].clone()
-        note.time = note.time - (old_notes[i - 1].time + old_notes[i - 1].length)
-        notes.append(note)
-    motor_notes[motor_idx] = notes
 
-with open("song.c", "w") as file:
-    lines = ['#include "song.h"', ""]
-    for i, notes in enumerate(motor_notes):
-        body = "\n".join(["  " + i.to_note_command() for i in notes])
-        lines.append(f"const note motor{i+1}_notes[] = {{\n{body}\n}};")
-    file.write("\n".join(lines))
+class Motor:
+    index: int = 0
+    end_time: int = 0
+    playing: bool = False
 
-with open("song.h", "w") as file:
-    lines = ["#ifndef SONG_H", "#define SONG_H", '#include "lib/tones.h"', ""]
-    for i, notes in enumerate(motor_notes):
-        lines.append(f"extern const note motor{i+1}_notes[{len(notes)}];")
-        lines.append(f"const unsigned int motor{i+1}_notes_len = {len(notes)};")
-    lines.append("#endif")
-    file.write("\n".join(lines))
+
+motors = [Motor() for _ in motor_notes]
+with serial.Serial("/dev/ttyACM0", 115200) as ser:
+
+    def stop_all():
+        for i in range(len(motors)):
+            ser.write(struct.pack(">BH", i, 0))
+            ser.flush()
+
+    def signal_handler(sig, frame):
+        stop_all()
+        ser.close()
+        sys.exit(0)
+
+    signal.signal(signal.SIGINT, signal_handler)
+    sleep(2)
+    try:
+        time_offset = time_ns() // 1000000
+        while True:
+            time = time_ns() // 1000000 - time_offset
+            skipped = 0
+            for i, (motor, notes) in enumerate(zip(motors, motor_notes)):
+                if motor.index >= len(notes):
+                    skipped += 1
+                    continue
+                if not motor.playing and time > notes[motor.index].time:
+                    motor.playing = True
+                    ser.write(struct.pack(">BH", i, Pitches[notes[motor.index].pitch]))
+                    ser.flush()
+                if time > motor.end_time:
+                    motor.index += 1
+                    if motor.index >= len(notes):
+                        ser.write(struct.pack(">BH", i, 0))
+                        ser.flush()
+                        continue
+                    motor.end_time = notes[motor.index].time + notes[motor.index].length
+                    motor.playing = False
+                    if notes[motor.index].time > 0:
+                        ser.write(struct.pack(">BH", i, 0))
+                        ser.flush()
+            if skipped == len(motors):
+                break
+    except Exception as e:
+        stop_all()
+        raise e
+
+    print("Done")
+    stop_all()
 
