@@ -5,8 +5,9 @@ from tones import Note, get_enum_string
 
 
 # mid = MidiFile("./midi_export.mid")
-mid = MidiFile("./Mario Bros. - Super Mario Bros. Theme.mid")
+mid = MidiFile("/home/flynn/Downloads/Artist_ Stromae & Pomme - Ma Meilleure Ennemie.mid")
 # mid = MidiFile("Mario.mid")
+SEMITONE_SHIFT = 0
 
 ticks_per_beat = mid.ticks_per_beat
 tempo = 500000
@@ -24,7 +25,7 @@ for track in mid.tracks:
         elif msg.type == "set_tempo":
             tempo = msg.tempo
 
-piano = [Note(get_enum_string(i + 12), 0, 0) for i in range(128)]
+piano = [Note(get_enum_string(i + SEMITONE_SHIFT + 12), 0, 0) for i in range(128)]
 all_notes = []
 time = 0
 for i in range(len(all_messages)):
@@ -44,33 +45,38 @@ for i in range(len(all_messages)):
 
 all_notes = [n for n in all_notes if n.length > 0]
 all_notes = sorted(all_notes, key=lambda x: x.time)
-all_notes = all_notes[:165]
+all_notes = all_notes[:300]
 
 motor_notes: List[List[Note]] = [[] for _ in range(3)]
 
-last_added = -1
-
 for note in all_notes:
-    last_added += 1
-    last_added = last_added % len(motor_notes)
-
-    should_skip = False
-    old_val = last_added
-    while (
-        motor_notes[last_added]
-        and motor_notes[last_added][-1].time + motor_notes[last_added][-1].length
-        >= note.time
-    ):
-        last_added += 1
-        last_added = last_added % len(motor_notes)
-        if last_added == old_val:
-            should_skip = True
+    earliest_end = note.time + 99999
+    earliest_index = -1
+    for i, motor in enumerate(motor_notes):
+        if len(motor) == 0:
+            earliest_index = i
+            earliest_end = 0
             break
+        end = motor[-1].time + motor[-1].length
+        if end < earliest_end and note.time > motor[-1].time:
+            earliest_index = i
+            earliest_end = end
 
-    if should_skip:
-        print("Skipped note", note)
+    if earliest_index != -1:
+        early = motor_notes[earliest_index]
+        early.append(note)
+        if len(early) > 1 and early[-2].time + early[-2].length > early[-1].time:
+            early[-2].length = early[-1].time - early[-2].time
     else:
-        motor_notes[last_added].append(note)
+        print("Skipping note", note)
+
+for motor_idx, old_notes in enumerate(motor_notes):
+    notes = [old_notes[0].clone()]
+    for i in range(1, len(old_notes)):
+        note = old_notes[i].clone()
+        note.time = note.time - (old_notes[i - 1].time + old_notes[i - 1].length)
+        notes.append(note)
+    motor_notes[motor_idx] = notes
 
 with open("song.c", "w") as file:
     lines = ['#include "song.h"', ""]

@@ -114,11 +114,12 @@ enum Pitch {
 
 typedef struct note {
   enum Pitch pitch;
-  unsigned long start_millis;
-  unsigned long millis;
+  unsigned int delay_millis;
+  unsigned int millis;
 } note;
 
-#define Note(pitch, start_millis, millis) ((note){(pitch),(start_millis), (millis)})
+#define Note(pitch, delay_millis, millis)                                      \
+  ((note){(pitch), (delay_millis), (millis)})
 
 typedef struct motor {
   unsigned char stepPin;
