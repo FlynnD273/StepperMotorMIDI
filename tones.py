@@ -1,3 +1,9 @@
+class Motor:
+    index: int = 0
+    end_time: int = 0
+    playing: bool = False
+
+
 class Note:
     def __init__(self, pitch: str, time: int, length: int):
         self.pitch = pitch

@@ -1,5 +1,4 @@
 #include "lib/tones.h"
-#include "song.h"
 
 #define PIN_ENABLE 8
 motor motors[] = {
@@ -41,7 +40,7 @@ unsigned char s_note[3];
 
 void loop() {
   unsigned long now = micros();
-  if (Serial.available() >= 3) {
+  while (Serial.available() >= 3) {
     Serial.readBytes(s_note, sizeof(s_note));
 
     unsigned char index = s_note[0];
