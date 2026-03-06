@@ -1,3 +1,4 @@
+#! /bin/env python
 from typing import List
 from mido import Message, MidiFile, tick2second
 from tones import Note, Pitches, get_enum_string
