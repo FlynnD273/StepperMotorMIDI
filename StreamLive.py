@@ -20,7 +20,7 @@ class LiveMotor:
 
 def stream_live(args):
     motors = [LiveMotor(i) for i in range(3)]
-    with serial.Serial("/dev/ttyACM0", 115200) as ser:
+    with serial.Serial(args.port, 115200) as ser:
 
         def stop_all():
             for i in range(len(motors)):

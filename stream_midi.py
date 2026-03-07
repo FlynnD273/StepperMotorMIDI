@@ -8,6 +8,9 @@ parser = argparse.ArgumentParser()
 parser.add_argument(
     "-t", "--transpose", help="Transpose by semitones", default=0, type=int
 )
+parser.add_argument(
+    "-p", "--port", help="Path to TTY stream", default="/dev/ttyACM0", type=str
+)
 subparsers = parser.add_subparsers()
 file_parser = subparsers.add_parser("file", help="Stream a MIDI file")
 file_parser.add_argument("file", help="Path to MIDI file to stream")

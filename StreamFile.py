@@ -10,7 +10,7 @@ import sys
 
 def stream_file(args):
     mid = MidiFile(args.file)
-    SEMITONE_SHIFT = args.shift
+    SEMITONE_SHIFT = args.transpose
 
     ticks_per_beat = mid.ticks_per_beat
     tempo = 500000
@@ -73,7 +73,7 @@ def stream_file(args):
             print("Skipping note", note)
 
     motors = [Motor() for _ in motor_notes]
-    with serial.Serial("/dev/ttyACM0", 115200) as ser:
+    with serial.Serial(args.port, 115200) as ser:
 
         def stop_all():
             for i in range(len(motors)):
