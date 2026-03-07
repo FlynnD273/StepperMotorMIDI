@@ -3,6 +3,8 @@ import argparse
 import mido
 from StreamFile import stream_file
 from StreamLive import stream_live
+from StreamSpeaker import stream_speaker
+import pulsectl
 
 parser = argparse.ArgumentParser()
 parser.add_argument(
@@ -27,6 +29,13 @@ midi_parser.add_argument(
     default="" if not not output_names else output_names[0],
 )
 midi_parser.set_defaults(func=stream_live)
+speaker_parser = subparsers.add_parser("pipe", help="Stream raw audio bytes from stdio")
+speaker_parser.add_argument(
+    "-s",
+    "--samplerate",
+    default=48000,
+)
+speaker_parser.set_defaults(func=stream_speaker)
 
 args = parser.parse_args()
 args.func(args)

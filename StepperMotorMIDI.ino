@@ -46,12 +46,12 @@ void loop() {
     unsigned char index = s_note[0];
     Pitch pitch = (Pitch)((s_note[1] << 8) | s_note[2]);
     notes[index].pitch = pitch;
-    if (pitch != NOTE_NONE) {
-      motor *mot = &motors[index];
-      mot->curr_dir++;
-      mot->curr_dir %= 4;
-      digitalWrite(mot->dirPin, (mot->curr_dir < 2) ? LOW : HIGH);
-    }
+    // if (pitch != NOTE_NONE) {
+    //   motor *mot = &motors[index];
+    //   mot->curr_dir++;
+    //   mot->curr_dir %= 4;
+    //   digitalWrite(mot->dirPin, (mot->curr_dir < 2) ? LOW : HIGH);
+    // }
   }
   for (unsigned char i = 0; i < sizeof(motors) / sizeof(motor); i++) {
     perform_motor_tick(&motors[i], notes[i], now);
