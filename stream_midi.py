@@ -20,13 +20,13 @@ file_parser.set_defaults(func=stream_file)
 midi_parser = subparsers.add_parser(
     "live", help="Stream MIDI events from a MIDI controller"
 )
-output_names = mido.get_input_names()
+input_names = mido.get_input_names()
 midi_parser.add_argument(
     "-d",
     "--device",
     help=f"Device name",
-    choices=output_names,
-    default="" if not not output_names else output_names[0],
+    choices=input_names,
+    default="" if not not input_names else input_names[-1],
 )
 midi_parser.set_defaults(func=stream_live)
 speaker_parser = subparsers.add_parser("pipe", help="Stream raw audio bytes from stdio")
