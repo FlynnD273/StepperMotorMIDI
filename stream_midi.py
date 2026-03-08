@@ -1,10 +1,9 @@
 #! /bin/env python
 import argparse
 import mido
-from StreamFile import stream_file
-from StreamLive import stream_live
-from StreamSpeaker import stream_speaker
-import pulsectl
+from Py2Arduino.StreamFile import stream_file
+from Py2Arduino.StreamLive import stream_live
+from Py2Arduino.StreamSpeaker import stream_speaker
 
 parser = argparse.ArgumentParser()
 parser.add_argument(
@@ -20,7 +19,7 @@ file_parser.set_defaults(func=stream_file)
 midi_parser = subparsers.add_parser(
     "live", help="Stream MIDI events from a MIDI controller"
 )
-input_names = mido.get_input_names()
+input_names = mido.get_input_names()  # type: ignore
 midi_parser.add_argument(
     "-d",
     "--device",

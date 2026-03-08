@@ -1,11 +1,7 @@
-from typing import List
 import mido
-from tones import Note, Pitches, get_enum_string
-import struct
-import serial
+from tones import Pitches, get_enum_string
 import time
-import signal
-import sys
+from Util import get_serial, send_note, setup_exit_handler
 
 
 class LiveMotor:
@@ -20,19 +16,8 @@ class LiveMotor:
 
 def stream_live(args):
     motors = [LiveMotor(i) for i in range(3)]
-    with serial.Serial(args.port, 115200) as ser:
-
-        def stop_all():
-            for i in range(len(motors)):
-                ser.write(struct.pack(">BH", i, 0))
-                ser.flush()
-
-        def signal_handler(sig, frame):
-            stop_all()
-            ser.close()
-            sys.exit(0)
-
-        signal.signal(signal.SIGINT, signal_handler)
+    with get_serial(args.port) as ser:
+        setup_exit_handler(ser, len(motors))
         time.sleep(2)
         print("Ready.")
         with mido.open_input(args.device) as port:  # type: ignore
@@ -49,8 +34,7 @@ def stream_live(args):
                     for motor in motors:
                         if motor.note == msg.note:
                             motor.playing = False
-                            ser.write(struct.pack(">BH", motor.index, 0))
-                            ser.flush()
+                            send_note(ser, motor.index, 0)
                 else:
                     earliest_motor = None
                     for i in range(len(motors)):
@@ -73,8 +57,6 @@ def stream_live(args):
                         earliest_motor.playing = True
                         earliest_motor.start_time = curr_time
                         earliest_motor.note = msg.note
-                        ser.write(
-                            struct.pack(">BH", earliest_motor.index, Pitches[pitch_str])
-                        )
-                        ser.flush()
+                        send_note(ser, earliest_motor.index, Pitches[pitch_str])
+                ser.flush()
 

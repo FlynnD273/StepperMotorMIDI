@@ -1,11 +1,8 @@
 from typing import List
 from mido import Message, MidiFile, tick2second
 from tones import Note, Pitches, get_enum_string, Motor
-import struct
-import serial
-from time import sleep, time_ns
-import signal
-import sys
+import time
+from Util import get_serial, send_note, setup_exit_handler, stop_all
 
 
 def stream_file(args):
@@ -30,19 +27,20 @@ def stream_file(args):
 
     piano = [Note(get_enum_string(i + SEMITONE_SHIFT + 12), 0, 0) for i in range(128)]
     all_notes = []
-    time = 0
+    total_time = 0
     for i in range(len(all_messages)):
         curr = all_messages[i]
-        time += curr.time
+        total_time += curr.time
         if curr.type == "note_on":
             piano[curr.note] = Note(
                 piano[curr.note].pitch,
-                round(tick2second(time, ticks_per_beat, tempo) * 1_000),
+                round(tick2second(total_time, ticks_per_beat, tempo) * 1_000),
                 0,
             )
         elif curr.type == "note_off":
             piano[curr.note].length = round(
-                tick2second(time, ticks_per_beat, tempo) * 1_000 - piano[curr.note].time
+                tick2second(total_time, ticks_per_beat, tempo) * 1_000
+                - piano[curr.note].time
             )
             all_notes.append(piano[curr.note].clone())
 
@@ -73,54 +71,40 @@ def stream_file(args):
             print("Skipping note", note)
 
     motors = [Motor() for _ in motor_notes]
-    with serial.Serial(args.port, 115200) as ser:
-
-        def stop_all():
-            for i in range(len(motors)):
-                ser.write(struct.pack(">BH", i, 0))
-                ser.flush()
-
-        def signal_handler(sig, frame):
-            stop_all()
-            ser.close()
-            sys.exit(0)
-
-        signal.signal(signal.SIGINT, signal_handler)
-        sleep(2)
+    with get_serial(args.port) as ser:
+        setup_exit_handler(ser, len(motors))
+        time.sleep(2)
+        print("Ready.")
         try:
-            time_offset = time_ns() // 1000000
+            time_offset = time.time_ns() // 1_000_000
             while True:
-                time = time_ns() // 1000000 - time_offset
+                total_time = time.time_ns() // 1_000_000 - time_offset
                 skipped = 0
                 for i, (motor, notes) in enumerate(zip(motors, motor_notes)):
                     if motor.index >= len(notes):
                         skipped += 1
                         continue
-                    if not motor.playing and time > notes[motor.index].time:
+                    if not motor.playing and total_time > notes[motor.index].time:
                         motor.playing = True
-                        ser.write(
-                            struct.pack(">BH", i, Pitches[notes[motor.index].pitch])
-                        )
-                        ser.flush()
-                    if time > motor.end_time:
+                        send_note(ser, i, Pitches[notes[motor.index].pitch])
+                    if motor.playing and total_time > motor.end_time:
                         motor.index += 1
                         if motor.index >= len(notes):
-                            ser.write(struct.pack(">BH", i, 0))
-                            ser.flush()
+                            motor.playing = False
+                            send_note(ser, i, 0)
                             continue
                         motor.end_time = (
                             notes[motor.index].time + notes[motor.index].length
                         )
                         motor.playing = False
                         if notes[motor.index].time > 0:
-                            ser.write(struct.pack(">BH", i, 0))
-                            ser.flush()
+                            send_note(ser, i, 0)
                 if skipped == len(motors):
                     break
         except Exception as e:
-            stop_all()
+            stop_all(ser, len(motors))
             raise e
 
-        print("Done")
-        stop_all()
+        print("Done.")
+        stop_all(ser, len(motors))
 
