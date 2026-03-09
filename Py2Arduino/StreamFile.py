@@ -2,7 +2,7 @@ from typing import List
 from mido import Message, MidiFile, tick2second
 from tones import Note, Pitches, get_enum_string, Motor
 import time
-from Util import get_serial, send_note, setup_exit_handler, stop_all
+from Util import MOTOR_COUNT, get_serial, send_note, setup_exit_handler, stop_all
 
 
 def stream_file(args):
@@ -47,7 +47,7 @@ def stream_file(args):
     all_notes = [n for n in all_notes if n.length > 0]
     all_notes = sorted(all_notes, key=lambda x: x.time)
 
-    motor_notes: List[List[Note]] = [[] for _ in range(3)]
+    motor_notes: List[List[Note]] = [[] for _ in range(MOTOR_COUNT)]
 
     for note in all_notes:
         earliest_end = note.time + 99999
@@ -70,9 +70,12 @@ def stream_file(args):
         else:
             print("Skipping note", note)
 
-    motors = [Motor() for _ in motor_notes]
+    motors = [Motor() for _ in range(MOTOR_COUNT)]
+    for i in range(MOTOR_COUNT):
+        motors[i].index = i
+
     with get_serial(args.port) as ser:
-        setup_exit_handler(ser, len(motors))
+        setup_exit_handler(ser)
         time.sleep(2)
         print("Ready.")
         try:
@@ -102,9 +105,9 @@ def stream_file(args):
                 if skipped == len(motors):
                     break
         except Exception as e:
-            stop_all(ser, len(motors))
+            stop_all(ser)
             raise e
 
         print("Done.")
-        stop_all(ser, len(motors))
+        stop_all(ser)
 
