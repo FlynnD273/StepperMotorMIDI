@@ -2,8 +2,9 @@ from serial import Serial
 import struct
 import signal
 import sys
+import time
 
-MOTOR_COUNT = 3
+MOTOR_COUNT = 4
 
 
 def get_serial(port: str) -> Serial:
@@ -38,4 +39,6 @@ def setup_exit_handler(ser: Serial):
         sys.exit(0)
 
     signal.signal(signal.SIGINT, lambda _a, _b: signal_handler(ser))
+    time.sleep(3)
+    print("Ready.")
 

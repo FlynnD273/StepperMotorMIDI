@@ -18,8 +18,6 @@ def stream_live(args):
     motors = [LiveMotor(i) for i in range(3)]
     with get_serial(args.port) as ser:
         setup_exit_handler(ser)
-        time.sleep(2)
-        print("Ready.")
         with mido.open_input(args.device) as port:  # type: ignore
             while True:
                 msg = port.receive()

@@ -1,4 +1,3 @@
-import time
 import sys
 from scipy.signal import find_peaks
 import numpy as np
@@ -16,10 +15,10 @@ def stream_speaker(args):
     window = N * bias
     window /= max(window)
 
+    freqs = np.fft.rfftfreq(WINDOW, d=1 / args.samplerate)
+
     with get_serial(args.port) as ser:
         setup_exit_handler(ser)
-        time.sleep(2)
-        print("Ready.")
         while True:
             raw = np.frombuffer(sys.stdin.buffer.read(HOP * 2), dtype=np.int16)
             buffer[:-HOP] = buffer[HOP:]
@@ -27,24 +26,30 @@ def stream_speaker(args):
 
             spectrum = np.fft.rfft(buffer * window)
             magnitude = np.abs(spectrum)
-            freqs = np.fft.rfftfreq(WINDOW, d=1 / args.samplerate)
             peaks, _ = find_peaks(magnitude, prominence=5000, width=[0, 4])
-            # peaks, _ = find_peaks(magnitude)
             potential_peak_indexes = peaks[np.argsort(magnitude[peaks])[::-1]]
+            potential_peak_indexes = potential_peak_indexes[: MOTOR_COUNT * 3]
             peak_indexes = []
 
             for i in potential_peak_indexes:
-                is_rejected = magnitude[i] < max(magnitude[0] * 0.75, 50000)
-                if not is_rejected:
-                    is_rejected = freqs[i] < 100 or freqs[i] > 12000
+                is_rejected = freqs[i] < 100 or freqs[i] > 12000
                 if not is_rejected:
                     for j in peak_indexes:
-                        ratio = freqs[i] / freqs[j]
-                        if ratio >= 2 and (ratio % 1) < 0.2:
-                            is_rejected = True
+                        for mult in range(2, 6):
+                            f = freqs[j] * mult
+                            if abs(f - freqs[i]) < 10:
+                                is_rejected = True
+                                break
+                        if is_rejected:
                             break
                 if not is_rejected:
                     peak_indexes.append(i)
+
+            if len(peak_indexes) > 0:
+                level_threshold = max(np.max(magnitude[peak_indexes]) * 0.5, 50000)
+                peak_indexes = [
+                    i for i in peak_indexes if magnitude[i] > level_threshold
+                ]
 
             # peak_indexes = potential_peak_indexes
 

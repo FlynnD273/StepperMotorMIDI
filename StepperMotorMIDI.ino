@@ -5,8 +5,8 @@ motor motors[] = {
   Motor(3, 6),
   Motor(2, 5),
   Motor(4, 7),
+  Motor(12, 13),
 };
-motor mot4 = Motor(12, 13);
 
 void init_motor(motor *mot) {
   pinMode(mot->stepPin, OUTPUT);

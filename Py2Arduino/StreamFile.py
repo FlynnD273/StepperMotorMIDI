@@ -76,8 +76,6 @@ def stream_file(args):
 
     with get_serial(args.port) as ser:
         setup_exit_handler(ser)
-        time.sleep(2)
-        print("Ready.")
         try:
             time_offset = time.time_ns() // 1_000_000
             while True:
