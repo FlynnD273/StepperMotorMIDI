@@ -25,7 +25,7 @@ midi_parser.add_argument(
     "--device",
     help=f"Device name",
     choices=input_names,
-    default="" if not not input_names else input_names[-1],
+    default="" if not input_names else input_names[-1],
 )
 midi_parser.set_defaults(func=stream_live)
 speaker_parser = subparsers.add_parser("pipe", help="Stream raw audio bytes from stdio")
